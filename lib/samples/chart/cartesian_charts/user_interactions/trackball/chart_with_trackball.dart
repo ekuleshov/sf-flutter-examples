@@ -33,19 +33,23 @@ class _DefaultTrackballState extends SampleViewState {
   late ChartAlignment _alignment;
   late List<ChartSampleData> chartData;
 
+  TrackballBehavior? _trackballBehavior;
+  int _pointIndex = -1;
+
   @override
   void initState() {
     _modeList =
         <String>['floatAllPoints', 'groupAllPoints', 'nearestPoint'].toList();
     _alignmentList = <String>['center', 'far', 'near'].toList();
     duration = 2;
-    showAlways = false;
+    showAlways = true;
     canShowMarker = true;
     _selectedMode = 'floatAllPoints';
     _mode = TrackballDisplayMode.floatAllPoints;
     _tooltipAlignment = 'center';
     _showMarker = true;
     _alignment = ChartAlignment.center;
+
     chartData = <ChartSampleData>[
       ChartSampleData(
           x: DateTime(2000, 2, 11),
@@ -64,55 +68,92 @@ class _DefaultTrackballState extends SampleViewState {
           thirdSeriesYValue: 48),
       ChartSampleData(
           x: DateTime(2001, 9, 16),
-          y: 21,
-          secondSeriesYValue: 35,
+          y: 35,
+          secondSeriesYValue: 21,
           thirdSeriesYValue: 57),
       ChartSampleData(
           x: DateTime(2002, 2, 7),
-          y: 13,
-          secondSeriesYValue: 39,
+          y: 39,
+          secondSeriesYValue: 13,
           thirdSeriesYValue: 62),
       ChartSampleData(
           x: DateTime(2002, 9, 7),
-          y: 18,
-          secondSeriesYValue: 41,
+          y: 41,
+          secondSeriesYValue: 18,
           thirdSeriesYValue: 64),
       ChartSampleData(
           x: DateTime(2003, 2, 11),
-          y: 24,
-          secondSeriesYValue: 45,
+          y: 45,
+          secondSeriesYValue: 24,
           thirdSeriesYValue: 57),
       ChartSampleData(
           x: DateTime(2003, 9, 14),
-          y: 23,
-          secondSeriesYValue: 48,
+          y: 48,
+          secondSeriesYValue: 23,
           thirdSeriesYValue: 53),
       ChartSampleData(
           x: DateTime(2004, 2, 6),
-          y: 19,
-          secondSeriesYValue: 54,
+          y: 54,
+          secondSeriesYValue: 19,
           thirdSeriesYValue: 63),
       ChartSampleData(
           x: DateTime(2004, 9, 6),
-          y: 31,
-          secondSeriesYValue: 55,
+          y: 55,
+          secondSeriesYValue: 31,
           thirdSeriesYValue: 50),
       ChartSampleData(
           x: DateTime(2005, 2, 11),
-          y: 39,
-          secondSeriesYValue: 57,
-          thirdSeriesYValue: 66),
+          y: 66,
+          secondSeriesYValue: 39,
+          thirdSeriesYValue: 57),
       ChartSampleData(
           x: DateTime(2005, 9, 11),
-          y: 50,
-          secondSeriesYValue: 60,
+          y: 60,
+          secondSeriesYValue: 50,
           thirdSeriesYValue: 65),
       ChartSampleData(
           x: DateTime(2006, 2, 11),
-          y: 24,
-          secondSeriesYValue: 60,
+          y: 60,
+          secondSeriesYValue: 24,
           thirdSeriesYValue: 79),
     ];
+
+    _trackballBehavior = TrackballBehavior(
+      enable: true,
+      markerSettings: TrackballMarkerSettings(
+        markerVisibility: _showMarker
+            ? TrackballVisibilityMode.visible
+            : TrackballVisibilityMode.hidden,
+        height: 10,
+        width: 10,
+        borderWidth: 1,
+      ),
+      hideDelay: duration * 1000,
+      activationMode: ActivationMode.none,
+      tooltipAlignment: _alignment,
+      tooltipDisplayMode: _mode,
+      tooltipSettings: InteractiveTooltip(
+          format: _mode != TrackballDisplayMode.groupAllPoints
+              ? 'series.name : point.y'
+              : null,
+          canShowMarker: canShowMarker),
+      shouldAlwaysShow: showAlways,
+
+      builder: (context, details) {
+        return Container(
+          color: details.series!.color,
+          // color: Colors.black,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+            child: Text(
+              '${details.series?.yValueMapper?.call(details.pointIndex!)}',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      }
+    );
+
     super.initState();
   }
 
@@ -126,7 +167,32 @@ class _DefaultTrackballState extends SampleViewState {
 
   @override
   Widget build(BuildContext context) {
-    return _buildDefaultTrackballChart();
+    return Stack(children: [
+      _buildDefaultTrackballChart(),
+      Align(
+        alignment: Alignment.topRight,
+        child:           Row(children: <Widget>[
+          TextButton(
+            onPressed: () {
+              if (_pointIndex > 0) {
+                _pointIndex--;
+              }
+              _trackballBehavior?.showByIndex(_pointIndex);
+            },
+            child: const Text('Left'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (_pointIndex < chartData.length) {
+                _pointIndex++;
+              }
+              _trackballBehavior?.showByIndex(_pointIndex);
+            },
+            child: const Text('Right'),
+          ),
+        ]),
+      )
+    ]);
   }
 
   @override
@@ -140,7 +206,7 @@ class _DefaultTrackballState extends SampleViewState {
               builder: (BuildContext context, StateSetter setState) {
             return SizedBox(
                 height: 110,
-                child: ListView(shrinkWrap: true, children: <Widget>[
+                child: ListView(shrinkWrap: true, children: [
                   SizedBox(
                     child: Row(
                       children: <Widget>[
@@ -335,7 +401,7 @@ class _DefaultTrackballState extends SampleViewState {
                           canShowMarker = value!;
                           stateSetter(() {});
                         });
-                      }))
+                      })),
             ],
           ),
         ],
@@ -348,12 +414,14 @@ class _DefaultTrackballState extends SampleViewState {
     return SfCartesianChart(
       title: ChartTitle(text: !isCardView ? 'Average sales per person' : ''),
       plotAreaBorderWidth: 0,
-      primaryXAxis: DateTimeAxis(
-          interval: 1,
-          intervalType: DateTimeIntervalType.years,
-          dateFormat: DateFormat.y(),
-          majorGridLines: const MajorGridLines(width: 0),
-          edgeLabelPlacement: EdgeLabelPlacement.shift),
+      primaryXAxis: NumericAxis(
+          majorTickLines: const MajorTickLines(width: 0)),
+      // primaryXAxis: DateTimeAxis(
+      //     interval: 1,
+      //     intervalType: DateTimeIntervalType.years,
+      //     dateFormat: DateFormat.y(),
+      //     majorGridLines: const MajorGridLines(width: 0),
+      //     edgeLabelPlacement: EdgeLabelPlacement.shift),
       primaryYAxis: NumericAxis(
           title: AxisTitle(text: !isCardView ? 'Revenue' : ''),
           axisLine: const AxisLine(width: 0),
@@ -361,54 +429,45 @@ class _DefaultTrackballState extends SampleViewState {
       series: _getDefaultTrackballSeries(),
 
       /// To set the track ball as true and customized trackball behaviour.
-      trackballBehavior: TrackballBehavior(
-        enable: true,
-        markerSettings: TrackballMarkerSettings(
-          markerVisibility: _showMarker
-              ? TrackballVisibilityMode.visible
-              : TrackballVisibilityMode.hidden,
-          height: 10,
-          width: 10,
-          borderWidth: 1,
-        ),
-        hideDelay: duration * 1000,
-        activationMode: ActivationMode.singleTap,
-        tooltipAlignment: _alignment,
-        tooltipDisplayMode: _mode,
-        tooltipSettings: InteractiveTooltip(
-            format: _mode != TrackballDisplayMode.groupAllPoints
-                ? 'series.name : point.y'
-                : null,
-            canShowMarker: canShowMarker),
-        shouldAlwaysShow: showAlways,
-      ),
+      trackballBehavior: _trackballBehavior,
     );
   }
 
   /// Returns the list of chart which need to render  on the cartesian chart.
-  List<LineSeries<ChartSampleData, DateTime>> _getDefaultTrackballSeries() {
-    return <LineSeries<ChartSampleData, DateTime>>[
-      LineSeries<ChartSampleData, DateTime>(
-          dataSource: chartData,
-          xValueMapper: (ChartSampleData sales, _) => sales.x as DateTime,
-          yValueMapper: (ChartSampleData sales, _) => sales.y,
-          width: 2,
-          name: 'John',
-          markerSettings: const MarkerSettings(isVisible: true)),
-      LineSeries<ChartSampleData, DateTime>(
+  List<LineSeries<ChartSampleData, int>> _getDefaultTrackballSeries() {
+    return <LineSeries<ChartSampleData, int>>[
+      LineSeries<ChartSampleData, int>(
           dataSource: chartData,
           width: 2,
           name: 'Andrew',
-          xValueMapper: (ChartSampleData sales, _) => sales.x as DateTime,
+          color: Colors.red,
+          xValueMapper: (ChartSampleData sales, _) => (sales.x as DateTime).millisecondsSinceEpoch,
           yValueMapper: (ChartSampleData sales, _) => sales.secondSeriesYValue,
-          markerSettings: const MarkerSettings(isVisible: true)),
-      LineSeries<ChartSampleData, DateTime>(
-          dataSource: chartData,
+          markerSettings: const MarkerSettings(isVisible: true),
+          onPointTap: (details) => _trackballBehavior?.showByIndex(details.pointIndex!),
+      ),
+
+      LineSeries<ChartSampleData, int>(
+          dataSource: chartData.sublist(0, chartData.length - 2),
           width: 2,
-          xValueMapper: (ChartSampleData sales, _) => sales.x as DateTime,
+          xValueMapper: (ChartSampleData sales, _) => (sales.x as DateTime).millisecondsSinceEpoch,
           yValueMapper: (ChartSampleData sales, _) => sales.thirdSeriesYValue,
           name: 'Thomas',
-          markerSettings: const MarkerSettings(isVisible: true))
+          color: Colors.blue,
+          markerSettings: const MarkerSettings(isVisible: true),
+          onPointTap: (details) => _trackballBehavior?.showByIndex(details.pointIndex!),
+      ),
+
+      LineSeries<ChartSampleData, int>(
+          dataSource: chartData.sublist(0, 6),
+          xValueMapper: (ChartSampleData sales, _) => (sales.x as DateTime).millisecondsSinceEpoch,
+          yValueMapper: (ChartSampleData sales, _) => sales.y,
+          width: 2,
+          name: 'John',
+          color: Colors.green,
+          markerSettings: const MarkerSettings(isVisible: true),
+          onPointTap: (details) => _trackballBehavior?.showByIndex(details.pointIndex!),
+      ),
     ];
   }
 
